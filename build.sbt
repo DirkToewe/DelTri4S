@@ -46,7 +46,9 @@ lazy val deltri = crossProject(JVMPlatform, JSPlatform)
 //     scalaJSUseMainModuleInitializer in Test := true, // <- enable this before using test:runMain
 //     scalaJSStage := FastOptStage,
      scalaJSStage := FullOptStage,
-     scalaJSOptimizerOptions ~= (_ withDisableOptimizer true) // <- only necessary until
+     scalaJSOptimizerOptions ~= (
+       _ withDisableOptimizer true // <- necessary until fix of https://github.com/scala-js/scala-js/issues/3575
+     )
    )
   .jvmSettings(
    )
