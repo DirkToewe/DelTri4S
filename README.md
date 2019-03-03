@@ -7,7 +7,7 @@ retrace the modifications that were made to the mesh thus helping with the under
 and debugging of algorithms.
 
 For a demonstration of how a Constrained Delauna Triangulation is performed,
-see [this example](DirkToewe.GitHub.io/DelTri4S/cdt_example.html#-1). 
+see [this example](https://dirktoewe.github.io/DelTri4S/cdt_example.html). 
 
 Mesh Creation
 -------------
