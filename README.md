@@ -154,7 +154,7 @@ The input to the Constrained Delaunay Triangulation (CDT) in DelTri4S is a Piece
 (PLC). A PLC consists of:
 
   * A sequence of `nodes: Seq[(Double,Double)]`
-  * A sequence of `segments: Seq[(Int,Int)]`, where `Seq( (i,j) )` means the CDT must contain edge `( nodes(i), nodes(j) )`
+  * A sequence of `segments: Seq[(Int,Int)]`, where `Seq( (i,j) )` means the CDT must contain edge `(nodes(i),nodes(j))`
   * Information about holes and the boundary
 
 Holes must be entirely enclosed by a closed chain of segments. One way to specify holes or the outside,
