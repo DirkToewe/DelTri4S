@@ -39,13 +39,14 @@ val e = mesh.addNode(0,0.8)
 mesh.addTri(d,c,e)
 mesh.addSegment(d,c)
 ```
+
+![Mesh Creation Example](./docs/readme_example1.svg)
+
 The Node objects returned by `addNode` are used to reference nodes in further
 operations like adding segments or triangles. The Node object contains the x
 and y coordinate but the `equals` and `hashCode` method use object identity to
 compare objects. The Node objects themselve do however not contain any reference
-to mesh and do not prevent the mesh object from being garbage collected.  
-
-![Mesh Creation Example](./docs/readme_example1.svg)
+to mesh and do not prevent the mesh object from being garbage collected.
 
 The `toHTML` methods returns an HTML document string containing an interactive visualization.
 ```scala
