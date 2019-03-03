@@ -26,7 +26,7 @@ lazy val deltri = crossProject(JVMPlatform, JSPlatform)
   .in( file(".") )
   .settings(
      name := "deltri4s",
-     version := "0.1.0",
+     version := "0.1.1",
      scalaVersion := "2.12.8",
      scalacOptions ++= Seq(
        "-feature",

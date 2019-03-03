@@ -6,6 +6,9 @@ meshe objects to an interactive HTML visualization. Said visualizations allow to
 retrace the modifications that were made to the mesh thus helping with the understanding
 and debugging of algorithms.
 
+For a demonstration of how a Constrained Delauna Triangulation is performed,
+see [this example](DirkToewe.GitHub.io/DelTri4S/cdt_example.html#-1). 
+
 Mesh Creation
 -------------
 `TriMesh` is the super-type for mutable triangle meshes. A triangle mesh in DelTri4S
