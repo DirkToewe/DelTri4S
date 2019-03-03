@@ -1,3 +1,5 @@
+Overview
+--------
 DelTri4S is a 2D constrained Delaunay triangulation library for Scala and ScalaJS.
 In order to achieve that it implements both mutable and immutable data structures
 that allow the fast creation, manipulation and traversal of 2D triangle meshes.
