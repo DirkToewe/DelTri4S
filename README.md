@@ -1,14 +1,14 @@
 Overview
 --------
-DelTri4S is a 2D constrained Delaunay triangulation library for Scala and ScalaJS.
-In order to achieve that it implements both mutable and immutable data structures
+DelTri4S is a 2D constrained Delaunay Triangulation library for Scala and ScalaJS.
+To that end it implements both mutable and immutable data structures
 that allow the fast creation, manipulation and traversal of 2D triangle meshes.
-For educational and debugging purposes, DelTri4S support the export of triangle
-meshe objects to an interactive HTML visualization. Said visualizations allow to
-retrace the modifications that were made to the mesh thus helping with the understanding
+For educational and debugging purposes, DelTri4S supports the export of triangle
+mesh objects to an interactive HTML visualization. Said visualizations allow to
+retrace the modifications that were made to the mesh thus helping the understanding
 and debugging of algorithms.
 
-For a demonstration of how a Constrained Delauna Triangulation is performed,
+For a demonstration of how a Constrained Delaunay Triangulation is performed,
 see [this example](https://dirktoewe.github.io/DelTri4S/cdt_example.html#-1).
 
   * [Mesh Creation](#mesh-creation)
@@ -27,14 +27,14 @@ is composed of the following elements:
    
   <dt>Segments:<dd> Lines that are uniquely defined by a pair of Nodes. A mesh may contain
   intersecting segments but it woll not be Delaunay triangulatable. Segments are used in
-  constrained Delaunay triangulation to confine triangulated areas and to ensure that
+  constrained Delaunay Triangulations to confine triangulated areas and to enforce that
   certain edges are part of the triangulation.
 
   <dt>Triangle:<dd> Triangles that are uniquely identified by a triple of Nodes with positive
   orientation. Each node pair may only be part of one triangle.
 </dl>
 
-`TriMeshIndexed` is the fasted `TriMesh` implementation available.
+`TriMeshIndexed` is the fastest `TriMesh` implementation available.
 ```scala
 import deltri.TriMeshIndexed
 
@@ -55,8 +55,8 @@ mesh.addSegment(d,c)
 The Node objects returned by `addNode` are used to reference nodes in further
 operations like adding segments or triangles. The Node object contains the x
 and y coordinate but the `equals` and `hashCode` method use object identity to
-compare objects. The Node objects themselve do however not contain any reference
-to mesh and do not prevent the mesh object from being garbage collected.
+compare objects. The Node objects themselves do however not contain any reference
+to their mesh and do not prevent the mesh object from being garbage collected.
 
 The `toHTML` methods returns an HTML document string containing an interactive visualization.
 ```scala
@@ -70,8 +70,8 @@ getDesktop.browse(tmp.toUri resolve "#-1")
 ```
 
 `TriMeshImmutable` is an immutable/persistent triangle mesh data structure. It is roughly 50%
-slower than `TriMeshIndexed` but for faster and simpler undo/backtracking operations and is
-safely shareable without protection copying. 
+slower than `TriMeshIndexed` but allows for faster and simpler undo/backtracking operations and
+is safely shareable without protective copying. 
 ```scala
 val mesh1 = TriMeshImmutable.empty
 val(mesh2,a) = mesh1 addedNode (0 , 0)
@@ -85,7 +85,7 @@ val mesh7    = mesh6.addedTri(a,b,c)
                     .addedSegment(d,c)
 ```
 Note that the example code above can be greatly simplified by using pure functional programming
-techniques, e.g. by using the State Monad, as implement for example by [Cats](https://typelevel.org/cats/datatypes/state.html)
+techniques, e.g. by using the State Monad, as implement for example in [Cats](https://typelevel.org/cats/datatypes/state.html)
 or [ScalaZ](http://eed3si9n.com/learning-scalaz/State.html). `TriMeshMutable` is a wrapper around
 `TriMeshImmutable` that allow the conversion from and to a mutable representation in O(1).
 
@@ -129,7 +129,7 @@ mesh.foreachTriAround(a){
 }
 ```
 
-Analog to the aforementioned methods there is also `foreachNode`, `foreachSegement` and
+Analogue to the aforementioned methods there is also `foreachNode`, `foreachSegement` and
 `foreachSegmentAround`.
 
 Note that the author of DelTri4S is not a pure functional programmer and most traversal operations
@@ -165,7 +165,7 @@ The input to the Constrained Delaunay Triangulation (CDT) in DelTri4S is a Piece
   * Information about holes and the boundary
 
 Holes must be entirely enclosed by a closed chain of segments. One way to specify holes or the outside,
-is to specify one or more nodes that lie inside of a hole or outside.
+is to specify one or more nodes that lie inside of a hole or the outside.
 
 ```scala
 val center = (0.0, 0.0)
