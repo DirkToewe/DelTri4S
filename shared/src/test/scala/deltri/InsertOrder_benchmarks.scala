@@ -28,7 +28,7 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 
-object InsertionOrder_benchmarks
+object InsertOrder_benchmarks
 {
   def main( args: Array[String] ): Unit =
   {
@@ -47,7 +47,7 @@ object InsertionOrder_benchmarks
     for( run <- 1 to 1024 )
     {
       val (x,y) = {
-        val N = rng.nextInt(1024)
+        val N = rng.nextInt(128*1024)
         val pts = Array.fill(N){(rng.nextDouble,rng.nextDouble)}
           .to[mutable.HashSet] // <- remove duplicate points
           .toArray

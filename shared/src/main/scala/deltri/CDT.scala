@@ -121,7 +121,7 @@ object CDT
     }
 
     if( plc.confinedBySegments ) {
-      assert( mesh.nNodes == plc.nNodes, "plc.confinedBySegments=true only supported for empty meshes." )
+      assert( mesh.nNodes == plc.nNodes, "plc.confinedBySegments=true only supported for initially empty meshes." )
       erode(mesh)
     }
 
@@ -141,12 +141,8 @@ object CDT
           }
 
     val Seq(boundary) = mesh.boundaries
-    val iter = boundary.iterator
-    var a = iter.next()
-    for( b <- iter ) {
+    for( Seq(b,a) <- boundary.sliding(2) )
       del(a,b)
-      a = b
-    }
   }
 
   def cutAroundNodes( mesh: TriMesh, nodes: Traversable[Node] ): Unit = {
@@ -171,6 +167,6 @@ object CDT
         }
 
     for( (a,b) <- segments )
-      del(b,a)
+      del(a,b)
   }
 }

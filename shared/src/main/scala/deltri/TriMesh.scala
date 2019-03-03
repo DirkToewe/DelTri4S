@@ -16,7 +16,8 @@
 
 package deltri
 
-import TriMesh._
+import collection.immutable.{ IndexedSeq => ISeq }
+import deltri.TriMesh._
 import spire.math.{Algebraic, FpFilter, Rational}
 // import org.apache.commons.math3.util.{ FastMath => Math }
 
@@ -54,7 +55,7 @@ trait TriMesh
     *
     * @return
     */
-  def boundaries: Seq[Seq[this.NodeType]]
+  def boundaries: ISeq[ISeq[this.NodeType]]
 
   def hasEdge( a: Node, b: Node ): Boolean
 

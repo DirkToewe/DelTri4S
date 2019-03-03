@@ -50,7 +50,7 @@ class TriMeshMutable( var mesh: TriMeshImmutable ) extends TriMesh
 
   override def hasNode( node: Node ) = mesh hasNode node
   override def addNode( x: Double, y: Double )
-    = mesh.addedNode(x,y){ (m,n) => mesh = m; n }
+    = mesh.addedNode(x,y, (m,n) => {mesh = m; n})
   override def delNode( node: Node )
     = mesh = mesh deletedNode node
 
@@ -84,6 +84,13 @@ object TriMeshMutable
   {
     val mesh = TriMeshMutable.empty()
     val nodes = Delaunay.triangulate(mesh,x,y)
+    (mesh,nodes)
+  }
+
+  def delaunayConstrained( plc: PLC ): (TriMeshMutable,Array[Node]) =
+  {
+    val mesh = empty()
+    val nodes = CDT.triangulate(mesh,plc)
     (mesh,nodes)
   }
 

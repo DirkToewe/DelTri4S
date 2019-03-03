@@ -19,10 +19,7 @@ package deltri
 import java.awt.Desktop.getDesktop
 import java.lang.System.nanoTime
 import java.nio.file.Files
-import java.util.Arrays
 import java.util.Arrays.asList
-
-import deltri.TriMeshTaped.{AddTri, DelTri}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer

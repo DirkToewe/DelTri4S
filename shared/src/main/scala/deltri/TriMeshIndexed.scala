@@ -22,6 +22,9 @@ import deltri.TriMesh._
 import deltri.TriMeshIndexed._
 import deltri.TriMeshTaped._
 
+import scala.annotation.tailrec
+import scala.collection.immutable.{ IndexedSeq => ISeq }
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 /**
@@ -49,21 +52,29 @@ class TriMeshIndexed private() extends TriMesh
     _hasAdjacent(bi,ai)
   }
 
-  override def boundaries: Seq[Seq[IndexedNode]] = {
-    val result = ArrayBuffer.empty[Seq[IndexedNode]]
-    val edgeMap = new Array[Int](nNodes)
-    Arrays.fill(edgeMap,-1)
+  override def boundaries: ISeq[ISeq[IndexedNode]] =
+  {
+    val edgeMap = mutable.HashMap.empty[(IndexedNode,IndexedNode),IndexedNode]
+    val len   = _len
+    val nodes = _nodes
+    val triSeg= _triSeg
+    @inline def iNode( i: Int )
+      = nodes(i).asInstanceOf[IndexedNode]
 
-    val len  = _len
-    val nodes= _nodes
-    var i,j = 0
-    while( i < len ) {
+    var   j,i = 0
+    while(  i < len ) {
       nodes(i) match {
-        case IndexedNode(a,_,_) =>
-          _foreachTri(a){
-            (b,_) => if( ! _hasAdjacent(b,a) ) {
-              assert( edgeMap(a) < 0 )
-              edgeMap(a) = b
+        case IndexedNode(b,_,_) =>
+          _foreachTri(b){ (a,_) =>
+            if( ! _hasAdjacent(a,b) ) {
+              @inline @tailrec def loop( c: Int ): Int = {
+                val triSeg_b = triSeg(b)
+                val nTri     = triSeg_b(0)
+                val i = Arrays.binarySearch(triSeg_b, 2,2+nTri, c)
+                if( i < 0 ) c else loop( triSeg_b(i+nTri) )
+              }
+              val c = loop(a)
+              edgeMap{(iNode(a),iNode(b))} = iNode(c)
             }
           }
           j += 1
@@ -73,21 +84,22 @@ class TriMeshIndexed private() extends TriMesh
     }
     assert( _nNodes == j ) // <- TODO: remove check
 
-    i = edgeMap.length
-    while( i > 0 ) {
-      i -= 1
-      if( edgeMap(i) >= 0 ) {
-        val boundary = ArrayBuffer.empty[IndexedNode]
-        j = i
-        while( edgeMap(j) >= 0 ) {
-          val J = edgeMap(j); edgeMap(j) = -1; j=J
-          boundary += nodes(j).asInstanceOf[IndexedNode]
-        }
-        result += boundary
+    @inline @tailrec def nextBorder( border: ISeq[IndexedNode], a: IndexedNode, b: IndexedNode ): ISeq[IndexedNode] = {
+      val newBorder = border :+ b
+      edgeMap remove (a,b) match {
+        case None    =>            newBorder
+        case Some(d) => nextBorder(newBorder, b,d)
       }
     }
 
-    result
+    var borders = ISeq.empty[ISeq[IndexedNode]]
+
+    while( edgeMap.nonEmpty ) {
+      val (a,b) = edgeMap.keysIterator.next()
+      borders :+= nextBorder(Vector.empty, a, b)
+    }
+
+    borders
   }
 
   private def _hasAdjacent( a: Int, b: Int ) =
@@ -415,7 +427,7 @@ class TriMeshIndexed private() extends TriMesh
     )
   }
 
-  def toHtml: String = TriMeshTaped.toHtml{
+  def toHtml: String = TriMeshTaped toHtml {
     val changes = ArrayBuffer.empty[Change]
     for( node <- nodes ) changes += AddNode(node)
     foreachSegment( (a,b) => changes += AddSegment(a,b) )
@@ -435,16 +447,16 @@ object TriMeshIndexed
 
   def delaunay( x: Array[Double], y: Array[Double] ): (TriMeshIndexed,Array[Node]) =
   {
-    val mesh = TriMeshIndexed.empty()
+    val mesh = empty()
     val nodes = Delaunay.triangulate(mesh,x,y)
     (mesh,nodes)
   }
 
-  def cdt( plc: PLC ): TriMeshIndexed =
+  def delaunayConstrained( plc: PLC ): (TriMeshIndexed,Array[Node]) =
   {
     val mesh = TriMeshIndexed.empty()
-    CDT.triangulate(mesh,plc)
-    mesh
+    val nodes = CDT.triangulate(mesh,plc)
+    (mesh,nodes)
   }
 
   private[TriMeshIndexed] case class Gap( next: Int ) extends Node

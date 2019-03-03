@@ -25,10 +25,10 @@ import System.arraycopy
 
 class SortTest( sort: (Array[Double], (Double,Double) => Int, Int, Int) => Unit ) extends TestSuite
 {
-  private val rng = new Random(1337)
-
   private def test( compare: (Double,Double) => Int ) =
   {
+    val rng = new Random(1337)
+
     for( _ <- 1 to 64*1024 )
     {
       val arr = Array.tabulate[ Double]( rng.nextInt(1024)+1 )( _ => rng.nextDouble )
@@ -45,7 +45,50 @@ class SortTest( sort: (Array[Double], (Double,Double) => Int, Int, Int) => Unit 
     }
   }
 
+  private def testInt( compare: (Double,Double) => Int ) =
+  {
+    val rng = new Random(1337)
+
+    for( _ <- 1 to 1024 )
+    {
+      val arr = Array.tabulate[ Double]( rng.nextInt(32*1024)+1 )( _ => 42 )
+      val ref = Array.tabulate[JDouble](arr.length){arr(_)}
+      val until = rng.nextInt(arr.length+1)
+      val from  = rng.nextInt(     until+1)
+
+      Arrays sort ( ref, from,until, compare(_: JDouble,_: JDouble) )
+
+      sort(arr, compare, from,until)
+
+      for( i <- 0 until arr.length )
+        assert{ arr(i) == ref(i) }
+    }
+
+    for( _ <- 1 to 1024 )
+    {
+      val arr = Array.tabulate[ Double]( rng.nextInt(32*1024)+1 )( _ => rng.nextInt(32) - 16 )
+      val ref = Array.tabulate[JDouble](arr.length){arr(_)}
+      val until = rng.nextInt(arr.length+1)
+      val from  = rng.nextInt(     until+1)
+
+      Arrays sort ( ref, from,until, compare(_: JDouble,_: JDouble) )
+
+      sort(arr, compare, from,until)
+
+      for( i <- 0 until arr.length )
+        assert{ arr(i) == ref(i) }
+    }
+  }
+
   override val tests = Tests{
+
+    'ascendingInt {
+      testInt{ (x,y) => (x-y).signum }
+    }
+
+    'descendingInt {
+      testInt{ (x,y) => (y-x).signum }
+    }
 
     'ascending {
       test{ (x,y) => (x-y).signum }
@@ -70,6 +113,15 @@ object SortTest_mean   extends SortTest(
       = if( compare(-1,+1) < 0 ) x =>  x
         else                     x => -x
     Sort meanSort(arr, toDouble, from,until)
+  }
+)
+
+object SortTest_meanV2 extends SortTest(
+  (arr, compare, from,until) => {
+    val toDouble: Double => Double
+    = if( compare(-1,+1) < 0 ) x =>  x
+    else                     x => -x
+    Sort meanSortV2(arr, toDouble, from,until)
   }
 )
 

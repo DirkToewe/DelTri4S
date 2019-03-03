@@ -154,7 +154,7 @@ object Sort
     def qSort( from: Int, until: Int ): Unit =
     {
       val len = until - from
-      if( len <= 64 )
+      if( len <= 8 )
         binarySort[T](arr, (x: T,y: T) => {toDouble(x) - toDouble(y)}.signum, from,until)
       else {
         @inline def partition( pivot: Double ): Int = {
@@ -188,10 +188,72 @@ object Sort
 
         val split = partition(pivot)
         qSort(from,split)
-        qSort(split,until)
+        qSort(     split,until)
       }
     }
     qSort(from, until)
+  }
+
+
+  @inline def meanSortV2( arr: Array[Double] ): Unit
+    = meanSortV2( arr, (x: Double) => x, 0,arr.length )
+
+  @inline def meanSortV2( arr: Array[Double], from: Int, until: Int ): Unit
+    = meanSortV2( arr, (x: Double) => x, from, until )
+
+  @inline def meanSortV2[@specialized T]( arr: Array[T], toDouble: T => Double ): Unit
+    = meanSortV2(arr, toDouble, 0,arr.length )
+
+  @inline def meanSortV2[@specialized T]( arr: Array[T], toDouble: T => Double, from: Int, until: Int ): Unit =
+  {
+    assert( 0 <= from)
+    assert(      from <= until )
+    assert(              until <= arr.length )
+
+    @inline def vals( i: Int ): Double
+      = toDouble{arr(i)}
+
+    @inline def swap( i: Int, j: Int ) = {
+      val tmp = arr(i)
+                arr(i) = arr(j)
+                         arr(j) = tmp
+    }
+
+    def mSort( from: Int, until: Int ): Unit =
+    {
+      val len = until - from
+      if( len < 16 )
+        binarySort[T](arr, (x: T, y: T) => {toDouble(x) - toDouble(y)}.signum, from,until)
+      else {
+        @inline def partition( mean: Double ): Int = {
+          var lo = Double.NegativeInfinity
+          var hi = Double.PositiveInfinity
+          var  j,k = until
+          while( k > from ) {
+                 k-= 1
+            val vals_k = vals{k}
+            if( vals_k >  mean ) { j-=1; swap(j,k) }
+            if( vals_k >= mean && vals_k < hi ) hi = vals_k
+            if( vals_k <= mean && vals_k > lo ) lo = vals_k
+          }
+          // following code handles degenerate cases like [0, 1, 1,... , 1]
+          val mid = from+until >>> 1
+             k = j
+          while( j > mid && k > from ) { k-=1; if( lo == vals{k} ) { j-=1; swap(j,k);      }       }
+          while( j < mid && k < until) {       if( hi == vals{k} ) {       swap(j,k); j+=1 }; k+=1 }
+          return j
+        }
+
+        var mean = 0.0
+        var j = from; while( j < until ) { mean += vals(j); j+=1 }
+        mean /= len
+
+        val        split = partition(mean)
+        mSort(from,split)
+        mSort(     split,until)
+      }
+    }
+    mSort(from, until)
   }
 
 

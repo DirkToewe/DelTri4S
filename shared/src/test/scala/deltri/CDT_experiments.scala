@@ -37,7 +37,7 @@ object CDT_experiments
 
       val tmp = Files.createTempFile("plot_",".html")
       Files.write( tmp, asList(_mesh.toHtml) )
-      getDesktop.browse(tmp.toUri)
+      getDesktop.browse(tmp.toUri resolve "#-1")
     }
   }
 }

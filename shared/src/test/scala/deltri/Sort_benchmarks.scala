@@ -42,7 +42,8 @@ object Sort_benchmarks
     val sort_methods = Map[String, (Array[Double], (Double,Double) => Int) => Array[Double]](
       "scala" -> { (arr,_) => arr.sorted },
       "heap"         -> ( (x,ord) => {Sort.        heapSort(x,ord); x} ),
-      "mean"         -> ( (x, _ ) => {Sort.        meanSort(x    ); x} ),
+      "mean"         -> ( (x, _ ) => {Sort.      meanSort  (x    ); x} ),
+      "meanV2"       -> ( (x, _ ) => {Sort.      meanSortV2(x    ); x} ),
       "merge"        -> ( (x,ord) => {Sort.       mergeSort(x,ord); x} ),
       "quick"        -> ( (x,ord) => {Sort.       quickSort(x,ord); x} ),
 //      "binary"       -> ( (x,ord) => {Sort.      binarySort(x,ord); x} ),

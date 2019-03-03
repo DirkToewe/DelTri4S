@@ -29,42 +29,34 @@ object CDT_tests extends TestSuite
   private[deltri] def randPLC( rng: Random ): (PLC,Int) =
   {
     var mesh: TriMesh{ type NodeType = IndexedNode }
-      = RandomTriMesh.holeFreeUniform( rng.nextInt(64)+3 )
+      = RandomTriMesh.holeFreeUniform( rng.nextInt(32)+3 )
     mesh = TriMeshTaped(mesh)
 
     var nHoles = rng.nextInt(4)
 
     for( _ <- 1 to nHoles ) {
       RandomTriMesh.insertNodes(mesh,rng.nextInt(128)+32 )
-      if( ! RandomTriMesh.digHole(mesh) )
+      if( ! RandomTriMesh.digHole(mesh, minAngle = 10.toRadians, maxAngle = 350.toRadians) )
         nHoles -= 1
     }
     RandomTriMesh.insertNodes(mesh,rng.nextInt(128)+32 )
 
+    assert( mesh.boundaries.length == nHoles+1 )
+
     val nodes = mesh.nodes.toArray
     val coords = nodes map { n => (n.x,n.y) }
     val n2i = nodes.zipWithIndex.toMap
-    val boundaries = mesh.boundaries
     val segments: Seq[(Int,Int)]
       = for(
-          boundary @ Seq(head,tail @ _*) <- boundaries;
-          (a,b) <- boundary zip tail :+ head
+          boundary <- mesh.boundaries;
+          Seq(a,b) <-      boundary.sliding(2)
         ) yield n2i(a) -> n2i(b)
 
     val plc = PLC(
       coords,
       segments,
       false,
-      boundaries
-        .map( _ map {_.index} )
-        .flatMap{ case bnd @ Seq(head,tail @ _*) => bnd zip tail :+head }
-      //        boundaries.map{
-      //          case Seq(
-      //            IndexedNode(a,_,_),
-      //            IndexedNode(b,_,_),
-      //            _*
-      //          ) => (a,b)
-      //        }
+      segments
     )
 
     (plc, nHoles)

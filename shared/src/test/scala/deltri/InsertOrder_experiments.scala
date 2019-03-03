@@ -23,7 +23,7 @@ import java.util.Arrays.asList
 import scala.collection.mutable
 import scala.util.Random
 
-object InsertionOrder_experiments
+object InsertOrder_experiments
 {
   def main( args: Array[String] ): Unit =
   {

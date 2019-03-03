@@ -160,8 +160,8 @@ object RandomTriMesh
     val pts = nodes map { n => (n.x,n.y) }
 
     val boundaries = for(
-      boundary @ Seq(head,tail @ _*) <- mesh.boundaries;
-      (a,b) <- boundary zip tail :+ head
+      boundary <- mesh.boundaries;
+      Seq(a,b) <-      boundary.sliding(2)
     ) yield (a.index,b.index)
 
     val plc = PLC(
@@ -171,7 +171,7 @@ object RandomTriMesh
       boundaries
     )
 
-    TriMeshImmutable( TriMeshIndexed.cdt(plc) )
+    TriMeshImmutable( TriMeshIndexed.delaunayConstrained(plc)._1 )
   }
 
   def digHole(

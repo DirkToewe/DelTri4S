@@ -21,6 +21,7 @@ import deltri.TriMeshImmutable._
 import deltri.TriMeshIndexed.IndexedNode
 import deltri.TriMeshTaped._
 
+import scala.annotation.tailrec
 import scala.collection.immutable.{HashSet, IntMap, IndexedSeq => ISeq}
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -33,30 +34,40 @@ class TriMeshImmutable private(
 {
   def nNodes: Int = _triSeg.size
 
-  def boundaries: ISeq[ISeq[IndexedNode]] = {
-    var boundaries = ISeq.empty[ISeq[IndexedNode]]
-    val segMap = mutable.HashMap.empty[IndexedNode,IndexedNode]
+  def boundaries: ISeq[ISeq[IndexedNode]] =
+  {
+    val edgeMap = mutable.HashMap.empty[(IndexedNode,IndexedNode),IndexedNode]
 
     for( (ai,(a,bcs,_)) <- _triSeg )
     for( (bi,c @ IndexedNode(ci,_,_)) <- bcs )
-      if( ai < bi && ai < ci ) {
-        val (b,_,_) = _triSeg(bi)
-        if( ! _hasAdjacent(ai,ci) ) segMap(c) = a
-        if( ! _hasAdjacent(bi,ai) ) segMap(a) = b
-        if( ! _hasAdjacent(ci,bi) ) segMap(b) = c
+      if( ! bcs.contains(ci) )
+      {
+        val (_,des,_) = _triSeg(ci)
+
+        @inline @tailrec def loop( d: IndexedNode ): IndexedNode
+          = des getOrElse (d.index,null) match {
+              case null => d
+              case    d => loop(d)
+            }
+        edgeMap{(a,c)} = loop( _triSeg(bi)._1 )
       }
 
-    while( ! segMap.isEmpty ) {
-      var boundary = ISeq.empty[IndexedNode]
-      var (n,_) = segMap.iterator.next() // <- FIXME: this may be inefficient
-      while( segMap contains n ) {
-        n = segMap(n)
-        boundary :+= n
+    @inline @tailrec def nextBorder( border: ISeq[IndexedNode], a: IndexedNode, b: IndexedNode ): ISeq[IndexedNode] = {
+      val newBorder = border :+ b
+      edgeMap remove (a,b) match {
+        case None    =>            newBorder
+        case Some(d) => nextBorder(newBorder, b,d)
       }
-      boundaries :+= boundary
     }
 
-    boundaries
+    var borders = ISeq.empty[ISeq[IndexedNode]]
+
+    while( edgeMap.nonEmpty ) {
+      val (a,b) = edgeMap.keysIterator.next()
+      borders :+= nextBorder(Vector.empty, a, b)
+    }
+
+    borders
   }
 
   private def _hasAdjacent( a: Int, b: Int ): Boolean
@@ -126,7 +137,10 @@ class TriMeshImmutable private(
         case _ => false
       }
 
-  @inline def addedNode[O]( x: Double, y: Double )( consumer: (TriMeshImmutable,IndexedNode) => O ): O = {
+  def addedNode[O]( x: Double, y: Double ): (TriMeshImmutable,IndexedNode)
+    = addedNode(x,y, (_,_))
+
+  @inline def addedNode[O]( x: Double, y: Double, consumer: (TriMeshImmutable,IndexedNode) => O ): O = {
     val index = try{ _triSeg.lastKey+1 } catch { case _: RuntimeException => 0 }
     val node = new IndexedNode(index,x,y)
     val triSeg = _triSeg updateWith ( index, _emptyVal(node), (_,_) => throw new AssertionError() )
@@ -228,6 +242,26 @@ object TriMeshImmutable
   type V = (IndexedNode, IntMap[IndexedNode], HashSet[IndexedNode])
 
   val empty = new TriMeshImmutable(0,0, IntMap.empty)
+
+  def delaunay( nodes: (Double,Double)* ): (TriMeshImmutable,Array[Node])
+    = delaunay(
+        nodes.view.map(_._1).toArray,
+        nodes.view.map(_._2).toArray
+      )
+
+  def delaunay( x: Array[Double], y: Array[Double] ): (TriMeshImmutable,Array[Node]) =
+  {
+    val mut = TriMeshMutable.empty()
+    val nodes = Delaunay.triangulate(mut,x,y)
+    (mut.mesh,nodes)
+  }
+
+  def delaunayConstrained( plc: PLC ): (TriMeshImmutable,Array[Node]) =
+  {
+    val mut = TriMeshMutable.empty()
+    val nodes = CDT.triangulate(mut,plc)
+    (mut.mesh,nodes)
+  }
 
   def apply( triMesh: TriMesh ): TriMeshImmutable
     = triMesh match {

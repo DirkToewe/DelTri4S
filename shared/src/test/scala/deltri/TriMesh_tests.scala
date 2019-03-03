@@ -19,6 +19,7 @@ package deltri
 import deltri.TriMesh.Node
 import utest._
 
+import scala.collection.immutable.{ IndexedSeq => ISeq }
 import scala.collection.mutable
 import scala.math.{cos, sin}
 import scala.util.Random
@@ -74,10 +75,10 @@ class TriMeshTest( emptyMesh: () => TriMesh ) extends TestSuite
       for( x <- -16 to 16 )
       for( y <- -16 to 16 ) {
         val     mesh = emptyMesh()
-        val a = mesh.addNode(x-1, y-1)
-        val b = mesh.addNode(x+1, y-1)
-        val c = mesh.addNode(x+1, y+1)
-        val d = mesh.addNode(x-1, y+1)
+        val a = mesh addNode (x-1, y-1)
+        val b = mesh addNode (x+1, y-1)
+        val c = mesh addNode (x+1, y+1)
+        val d = mesh addNode (x-1, y+1)
 
         assert( ! _inCircle(a,b,c)(d) )
         assert( ! _inCircle(b,c,a)(d) )
@@ -99,7 +100,7 @@ class TriMeshTest( emptyMesh: () => TriMesh ) extends TestSuite
 
     'inCircle2 {
       val rng = new Random(1337)
-      for( _ <- 1 to 1024*1024 )
+      for( _ <- 1 to 128*1024 )
       {
         val mesh = emptyMesh()
         val d = mesh.addNode(
@@ -125,7 +126,37 @@ class TriMeshTest( emptyMesh: () => TriMesh ) extends TestSuite
       }
     }
 
-    'orient {
+    'inCircle3 {
+      val rng = new Random(1337)
+      for( _ <- 1 to 1024 )
+      {
+        val x,y = rng.nextDouble*16 + 1e-8
+
+        val     mesh = emptyMesh()
+        val a = mesh addNode (-x, -y)
+        val b = mesh addNode (+x, -y)
+        val c = mesh addNode (+x, +y)
+        val d = mesh addNode (-x, +y)
+
+        assert( ! _inCircle(a,b,c)(d) )
+        assert( ! _inCircle(b,c,a)(d) )
+        assert( ! _inCircle(c,a,b)(d) )
+
+        assert( ! _inCircle(b,c,d)(a) )
+        assert( ! _inCircle(c,d,b)(a) )
+        assert( ! _inCircle(d,b,c)(a) )
+
+        assert( ! _inCircle(c,d,a)(b) )
+        assert( ! _inCircle(d,a,c)(b) )
+        assert( ! _inCircle(a,c,d)(b) )
+
+        assert( ! _inCircle(d,a,b)(c) )
+        assert( ! _inCircle(a,b,d)(c) )
+        assert( ! _inCircle(b,d,a)(c) )
+      }
+    }
+
+    'orient2d {
       val rng = new Random(1337)
       for( _ <- 1 to 1024*1024 )
       {
@@ -209,6 +240,72 @@ class TriMeshTest( emptyMesh: () => TriMesh ) extends TestSuite
       assert( mesh.adjacent(c,d).nodeOrNull == a )
       assert( mesh.adjacent(d,a).nodeOrNull == c )
       assert( mesh.adjacent(a,c).nodeOrNull == d )
+    }
+
+    'boundaries1 {
+      val mesh = emptyMesh()
+      val a = mesh addNode (0,0)
+      val b = mesh addNode (1,0)
+      val c = mesh addNode (1,1)
+      val d = mesh addNode (0,1)
+              mesh addTri (a,b,c)
+              mesh addTri (c,d,a)
+
+      val Seq(boundary) = mesh.boundaries
+      assert( boundary(0) eq boundary.last )
+      assert( boundary.length == 5 )
+      assert( boundary == Seq(a,d,c,b,a)
+           || boundary == Seq(b,a,d,c,b)
+           || boundary == Seq(c,b,a,d,c)
+           || boundary == Seq(d,c,b,a,d) )
+    }
+
+    'boundaries2 {
+      for( off <- Seq(120,60,45,30,15) )
+      {
+        val mesh = emptyMesh()
+
+        val pts = Vector range (0,360,off) map (_.toRadians) map {
+          ang => ( Math cos ang,
+                   Math sin ang )
+        }
+        val len = pts.length
+        var outer = for( (x,y) <- pts ) yield mesh addNode (x*2, y*2)
+        val inner = for( (x,y) <- pts ) yield mesh addNode (x*1, y*1)
+
+        for(  i <- 0 until len ) {
+          val j  = (i+1) % len
+          mesh.addTri( inner(i), outer(i), inner(j) )
+          mesh.addTri( outer(i), outer(j), inner(j) )
+        }
+
+        outer = outer.reverse
+
+        val boundaries = mesh.boundaries
+        assert( boundaries.length == 2 )
+
+        def matches( boundary: Seq[Node], ref: Seq[Node] ): Boolean =
+        {
+          val i = ref indexOf boundary(0)
+          if( i < 0 )
+            false
+          else {
+            val reference = ref.drop(i) ++ ref.take(i) :+ ref(i)
+            boundary == reference
+          }
+        }
+
+        for( boundary <- boundaries ) {
+          assert( boundary(0) == boundary.last )
+          assert( boundary.length == len+1 )
+
+          for( Seq(a,b) <- boundary.sliding(2) )
+            assert( ! mesh.adjacent(a,b).exists )
+
+          assert( matches(boundary,inner)
+                ^ matches(boundary,outer) )
+        }
+      }
     }
   }
 }

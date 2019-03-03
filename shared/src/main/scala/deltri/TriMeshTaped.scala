@@ -151,6 +151,28 @@ object TriMeshTaped
   def apply( triMesh: TriMesh ): TriMeshTaped{ type NodeType = triMesh.NodeType }
     = new TriMeshTaped(triMesh).asInstanceOf[TriMeshTaped{ type NodeType = triMesh.NodeType }]
 
+  def empty() = this( TriMeshIndexed.empty )
+
+  def delaunay( nodes: (Double,Double)* ): (TriMeshTaped,Array[Node])
+    = delaunay(
+        nodes.view.map(_._1).toArray,
+        nodes.view.map(_._2).toArray
+      )
+
+  def delaunay( x: Array[Double], y: Array[Double] ): (TriMeshTaped,Array[Node]) =
+  {
+    val mesh = empty()
+    val nodes = Delaunay.triangulate(mesh,x,y)
+    (mesh,nodes)
+  }
+
+  def delaunayConstrained( plc: PLC ): (TriMeshTaped,Array[Node]) =
+  {
+    val mesh = empty()
+    val nodes = CDT.triangulate(mesh,plc)
+    (mesh,nodes)
+  }
+
   sealed trait Change {}
   case class AddNode( node: Node )                   extends Change {}
   case class DelNode( node: Node )                   extends Change {}
@@ -191,10 +213,8 @@ object TriMeshTaped
      |        div     = document.createElement('div'),
      |        slider  = document.createElement('input'),
      |        spinner = document.createElement('input'),
-     |        span    = document.createElement('span');
-     |      div.width = '95vw';
-     |      div.height= '95vh';
-     |      slider.style = 'width: 70vw';
+     |        save_btn= document.createElement('button');
+     |      slider.style = 'width: 80vw';
      |
      |      const
      |        svg = document.createElementNS(SVG,'svg'),
@@ -207,8 +227,10 @@ object TriMeshTaped
      |      circ.style['pointer-events'] = 'none';
      |      segs.style['pointer-events'] = 'none';
      |
-     |      svg.setAttributeNS(null, 'height',  '920px');
-     |//      svg.setAttributeNS(null, 'height', '100%%');
+     |      svg.style = 'width:95vw; height:95vh;';
+     |      svg.setAttribute('version',     '1.1');
+     |      svg.setAttribute('xmlns',       'http://www.w3.org/2000/svg'  );
+     |      svg.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
      |      svg.setAttributeNS(null, 'preserveAspectRatio', 'xMidYMid');
      |
      |      svg.appendChild(tris);
@@ -216,10 +238,12 @@ object TriMeshTaped
      |      svg.appendChild(circ);
      |      svg.appendChild(pts);
      |
+     |      save_btn.innerHTML = 'Save SVG';
+     |
      |      div.appendChild(svg);
      |      document.body.appendChild(slider);
      |      document.body.appendChild(spinner);
-     |      document.body.appendChild(span);
+     |      document.body.appendChild(save_btn);
      |      document.body.appendChild(div);
      |
      |      let
@@ -264,7 +288,7 @@ object TriMeshTaped
      |            const pt = document.createElementNS(SVG,'circle');
      |            pt.setAttributeNS(null,'cx',x);
      |            pt.setAttributeNS(null,'cy',y);
-     |            pt.setAttributeNS(null,'r', '0.1%%');
+     |            pt.setAttributeNS(null,'r', '0.2%%');
      |            pt.setAttributeNS(null,'fill', 'black');
      |
      |            pt.nid = nid;
@@ -272,7 +296,8 @@ object TriMeshTaped
      |            pt.y = y;
      |
      |            id2pt[nid] = pt;
-     |            pts.appendChild(pt);
+     |            if( isFinite(x) && isFinite(y) )
+     |              pts.appendChild(pt);
      |
      |            if( isFinite(x) ) {
      |              x_min = Math.min(x_min, x);
@@ -322,7 +347,8 @@ object TriMeshTaped
      |            );
      |
      |            ids2tri[[a,b,c]] = tri;
-     |            tris.appendChild(tri);
+     |            if( [p0,p1,p2].every(p => isFinite(p.x) && isFinite(p.y)) )
+     |              tris.appendChild(tri);
      |          }
      |          ids2tri[[a,b,c]].style.visibility = 'visible';
      |        },
@@ -355,7 +381,8 @@ object TriMeshTaped
      |            seg.setAttributeNS(null, 'y2', p2.y);
      |
      |            ids2seg[[a,b]] = seg;
-     |            segs.appendChild(seg);
+     |            if( [p1,p2].every(p => isFinite(p.x) && isFinite(p.y)) )
+     |              segs.appendChild(seg);
      |          }
      |          ids2seg[[a,b]].style.visibility = 'visible';
      |        },
@@ -381,8 +408,9 @@ object TriMeshTaped
      |      function goto_state( s ) {
      |        if( s < 0              ) throw new Error();
      |        if( s > changes.length ) throw new Error();
-     |        while( state < s ) { const change = changes[state++]; ops_do  [change.type](change); console.log( "  Do" + JSON.stringify(changes[state-1]) ); }
-     |        while( state > s ) { const change = changes[--state]; ops_undo[change.type](change); console.log( "UnDo" + JSON.stringify(changes[state  ]) ); }
+     |        while( state < s ) { const change = changes[state++]; ops_do  [change.type](change); /* console.log( "  Do" + JSON.stringify(changes[state-1]) ); */ }
+     |        while( state > s ) { const change = changes[--state]; ops_undo[change.type](change); /* console.log( "UnDo" + JSON.stringify(changes[state  ]) ); */ }
+     |        document.location.hash = s
      |      }
      |
      |      spinner.type='number';
@@ -398,7 +426,37 @@ object TriMeshTaped
      |      slider .oninput = e => { spinner.value =  slider.value; goto_state( slider.value); }
      |      spinner.oninput = e => {  slider.value = spinner.value; goto_state(spinner.value); }
      |
-     |      spinner.value = 0;
+     |      slider.value = spinner.value = function(){
+     |        let step = Math.trunc( document.location.hash.slice(1) ) || 0
+     |        if( step < 0 ) step += 1 + parseInt(spinner.max)
+     |        step = Math.min( step,   spinner.max )
+     |        step = Math.max( step,   spinner.min )
+     |        return step
+     |      }();
+     |      goto_state(spinner.value)
+     |
+     |      save_btn.onclick = () => {
+     |        const dat = svg.cloneNode(true);
+     |        dat.style = '';
+     |        dat.setAttribute('width', '1280px');
+     |        dat.setAttribute('height', '720px');
+     |
+     |        let str = new XMLSerializer().serializeToString(dat);
+     |        str = '<?xml version="1.0" encoding="utf-8"?>\\n'
+     |            + '<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">\\n'
+     |            + str;
+     |
+     |        const blob = new Blob([str], {type: 'image/svg+xml'});
+     |        const url = URL.createObjectURL(blob);
+     |
+     |        // window.open(url);
+     |
+     |        const a = document.createElement('a');
+     |        document.body.appendChild(a);
+     |        a.href = url;
+     |        a.download = "mesh.svg";
+     |        a.click();
+     |      }
      |    }
      |    </script>
      |  </body>
