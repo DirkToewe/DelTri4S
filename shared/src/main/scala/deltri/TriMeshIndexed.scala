@@ -175,8 +175,8 @@ class TriMeshIndexed private() extends TriMesh
       nodes(i) match {
         case node @ IndexedNode(a,_,_) =>
           _foreachSegment(a){ b =>
-            assert( a < b )
-            consumer( node, _nodes(b).asInstanceOf[IndexedNode] )
+            if( a < b )
+              consumer( node, _nodes(b).asInstanceOf[IndexedNode] )
             k += 1
           }
           j += 1
@@ -184,8 +184,8 @@ class TriMeshIndexed private() extends TriMesh
       }
       i += 1
     }
-    assert( _nNodes == j ) // <- TODO: remove checks
-    assert( _nSegs == k )
+    assert( _nNodes  == j ) // <- TODO: remove checks
+    assert( _nSegs*2 == k )
   }
 
   override def foreachSegmentAround[U]( node: Node )( consumer: this.NodeType => U ): Unit
@@ -333,12 +333,12 @@ class TriMeshIndexed private() extends TriMesh
     assert( a ne b )
     val ai = nodeIndex(a)
     val bi = nodeIndex(b)
-    if( ai < bi ) _hasSegment(ai,bi)
-    else          _hasSegment(bi,ai)
+    _hasSegment(ai,bi)
   }
 
   private def _hasSegment( a: Int, b: Int ): Boolean =
   {
+    assert( a != b )
     val triSeg = _triSeg(a)
     val nSeg = triSeg(1)
     0 <= Arrays.binarySearch(
@@ -354,13 +354,14 @@ class TriMeshIndexed private() extends TriMesh
     assert( a ne b )
     val ai = nodeIndex(a)
     val bi = nodeIndex(b)
-    if( ai < bi ) _addSegment(ai,bi)
-    else          _addSegment(bi,ai)
+    _addSegment(ai,bi)
+    _addSegment(bi,ai)
     _nSegs += 1
   }
 
   private def _addSegment( a: Int, b: Int ): Unit =
   {
+    assert( a != b )
     val triSeg = _triSeg(a)
 
     val nTri = triSeg(0)
@@ -395,13 +396,15 @@ class TriMeshIndexed private() extends TriMesh
     assert( a ne b )
     val ai = nodeIndex(a)
     val bi = nodeIndex(b)
-    if( ai < bi ) _delSegment(ai,bi)
-    else          _delSegment(bi,ai)
+    _delSegment(ai,bi)
+    _delSegment(bi,ai)
     _nSegs -= 1
   }
 
   private def _delSegment( a: Int, b: Int ): Unit =
   {
+    assert( a != b )
+
     val triSeg = _triSeg(a)
     val nSeg = triSeg(0)
     val i = Arrays.binarySearch(triSeg, /*from=*/triSeg.length-nSeg, /*until=*/triSeg.length, b)
@@ -468,7 +471,7 @@ object TriMeshIndexed
   final case class IndexedNode private[deltri]( index: Int, x: Double, y: Double ) extends TriMesh.Node
   {
     override def toString = f"IndexedNode($index%4d, $x%8g, $y%8g)"
-//    override def equals( obj: Any ) = this eq obj.asInstanceOf[AnyRef]
-//    override def hashCode = System.identityHashCode(this)
+    override def equals( obj: Any ) = this eq obj.asInstanceOf[AnyRef]
+    override def hashCode = System.identityHashCode(this)
   }
 }

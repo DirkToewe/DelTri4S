@@ -107,13 +107,21 @@ class TriMeshTaped private( val mesh: TriMesh ) extends TriMesh
     val nodes= mutable.HashSet.empty[Node]
     val tris = mutable.HashSet.empty[(Node,Node,Node)]
     val segs = mutable.HashSet.empty[(Node,Node)]
-    foreachNode( nodes += _ )
-    foreachTri( (a,b,c) => tris += ((a,b,c),(b,c,a),(c,a,b)) )
-    foreachSegment( (a,b) => segs += ((a,b),(b,a)) )
 
-    assert( nodes.size == nNodes      )
-    assert(  tris.size == nTris*3     )
-    assert(  segs.size == nSegments*2 )
+    var numNodes,numSegs,numTris = 0
+
+
+    foreachNode   (  n      => { nodes += n;                         numNodes += 1 } )
+    foreachSegment( (a,b)   => {  segs += ((a,b),(b,a));             numSegs  += 1 } )
+    foreachTri    ( (a,b,c) => {  tris += ((a,b,c),(b,c,a),(c,a,b)); numTris  += 1 } )
+
+    assert( nNodes    == numNodes )
+    assert( nSegments == numSegs  )
+    assert( nTris     == numTris  )
+
+    assert( nodes.size ==   nNodes   , s"${nodes.size} != ${  nNodes   }" )
+    assert(  tris.size == 3*nTris    , s"${ tris.size} != ${3*nTris    }" )
+    assert(  segs.size == 2*nSegments, s"${ segs.size} != ${2*nSegments}" )
 
     _changes.reverse.foreach{
       case AddNode(n) => val s=nodes.size; nodes -= n; assert( nodes.size == s-1 )
@@ -213,8 +221,9 @@ object TriMeshTaped
      |        div     = document.createElement('div'),
      |        slider  = document.createElement('input'),
      |        spinner = document.createElement('input'),
-     |        save_btn= document.createElement('button');
-     |      slider.style = 'width: 80vw';
+     |        save_btn= document.createElement('button'),
+     |        anim_btn= document.createElement('button');
+     |      slider.style = 'width: 75vw';
      |
      |      const
      |        svg = document.createElementNS(SVG,'svg'),
@@ -239,21 +248,22 @@ object TriMeshTaped
      |      svg.appendChild(pts);
      |
      |      save_btn.innerHTML = 'Save SVG';
+     |      anim_btn.innerHTML = 'Save Anim.';
      |
      |      div.appendChild(svg);
      |      document.body.appendChild(slider);
      |      document.body.appendChild(spinner);
      |      document.body.appendChild(save_btn);
+     |      document.body.appendChild(anim_btn);
      |      document.body.appendChild(div);
      |
      |      let
      |        x_min = +Infinity, y_min = +Infinity,
      |        x_max = -Infinity, y_max = -Infinity;
      |
-     |      const
-     |        id2pt   = {},
-     |        ids2seg = {},
-     |        ids2tri = {};
+     |      const id2pt = {},
+     |          ids2seg = {},
+     |          ids2tri = {};
      |
      |      tris.onmousemove = event => {
      |        const
@@ -272,28 +282,24 @@ object TriMeshTaped
      |        circ.setAttributeNS(null, 'cx', ux);
      |        circ.setAttributeNS(null, 'cy', uy);
      |        circ.setAttributeNS(null, 'r', Math.hypot(ax-ux, ay-uy) );
-     |        circ.style.visibility = 'visible';
+     |        circ.setAttributeNS(null, 'opacity', 1);
      |      };
      |
-     |      tris.onmouseout = event => circ.style.visibility = 'hidden';
+     |      tris.onmouseout = event => circ.setAttributeNS(null, 'opacity', 0);
      |
-     |      pts.onmouseover = event => span.innerHTML = `Point $${event.target.nid}`;
+     |//      pts.onmouseover = event => span.innerHTML = `Point $${event.target.nid}`;
      |
      |      const ops_do = {
-     |        add_pt: change => {
+     |        add_pt: (change,state) => {
      |          const {nid,x,y} = change;
      |
      |          if( ! id2pt.hasOwnProperty(nid) )
      |          {
      |            const pt = document.createElementNS(SVG,'circle');
-     |            pt.setAttributeNS(null,'cx',x);
-     |            pt.setAttributeNS(null,'cy',y);
-     |            pt.setAttributeNS(null,'r', '0.2%%');
-     |            pt.setAttributeNS(null,'fill', 'black');
+     |            for( const [k,v] of Object.entries({ cx: x, cy: y, r: '0.2%%', fill: 'black' }) )
+     |              pt.setAttributeNS(null,k,v);
      |
-     |            pt.nid = nid;
-     |            pt.x = x;
-     |            pt.y = y;
+     |            Object.assign(pt, {nid,x,y, toggles: new Set()});
      |
      |            id2pt[nid] = pt;
      |            if( isFinite(x) && isFinite(y) )
@@ -315,13 +321,17 @@ object TriMeshTaped
      |
      |            svg.setAttributeNS(null, 'viewBox', `$${x0} $${y0} $${w} $${h}`);
      |          }
-     |          id2pt[nid].style.visibility = 'visible';
+     |          const pt = id2pt[nid];
+     |          pt.toggles.add(state);
+     |          pt.setAttributeNS(null, 'opacity', 1);
      |        },
-     |        del_pt: change => {
+     |        del_pt: (change,state) => {
      |          const {nid} = change;
-     |          id2pt[nid].style.visibility = 'hidden';
+     |          const pt = id2pt[nid];
+     |          pt.toggles.add(state);
+     |          pt.setAttributeNS(null, 'opacity', 0);
      |        },
-     |        add_tri: change => {
+     |        add_tri: (change,state) => {
      |          let {a,b,c} = change;
      |
      |          if( b < a && b < c ) { let tmp = a; a = b; b = c; c = tmp; }
@@ -333,7 +343,7 @@ object TriMeshTaped
      |          if( ! ids2tri.hasOwnProperty([a,b,c]) )
      |          {
      |            const tri = document.createElementNS(SVG,'polygon');
-     |            Object.assign(tri, {a,b,c});
+     |            Object.assign(tri, {a,b,c, toggles: new Set()});
      |
      |            const
      |              p0 = id2pt[a],
@@ -350,9 +360,11 @@ object TriMeshTaped
      |            if( [p0,p1,p2].every(p => isFinite(p.x) && isFinite(p.y)) )
      |              tris.appendChild(tri);
      |          }
-     |          ids2tri[[a,b,c]].style.visibility = 'visible';
+     |          const tri = ids2tri[[a,b,c]];
+     |          tri.toggles.add(state);
+     |          tri.setAttributeNS(null, 'opacity', 1);
      |        },
-     |        del_tri: change => {
+     |        del_tri: (change,state) => {
      |          let {a,b,c} = change;
      |
      |          if( b < a && b < c ) { let tmp = a; a = b; b = c; c = tmp; }
@@ -361,14 +373,17 @@ object TriMeshTaped
      |          if( ! (a < b && a < c) )
      |            throw new Error('ASSERTION_ERROR');
      |
-     |          ids2tri[[a,b,c]].style.visibility = 'hidden';
+     |          const tri = ids2tri[[a,b,c]];
+     |          tri.toggles.add(state);
+     |          tri.setAttributeNS(null, 'opacity', 0);
      |        },
-     |        add_segment: change => {
+     |        add_segment: (change,state) => {
      |          let {a,b} = change;
      |          if( b < a ) { let tmp = a; a = b; b = tmp; }
      |          if( ! ids2seg.hasOwnProperty([a,b]) )
      |          {
      |            const seg = document.createElementNS(SVG,'line');
+     |            seg.toggles = new Set();
      |
      |            const
      |              p1 = id2pt[a],
@@ -384,14 +399,19 @@ object TriMeshTaped
      |            if( [p1,p2].every(p => isFinite(p.x) && isFinite(p.y)) )
      |              segs.appendChild(seg);
      |          }
-     |          ids2seg[[a,b]].style.visibility = 'visible';
+     |          const seg = ids2seg[[a,b]];
+     |          seg.toggles.add(state);
+     |          seg.setAttributeNS(null, 'opacity', 1);
      |        },
-     |        del_segment: change => {
+     |        del_segment: (change,state) => {
      |          let {a,b} = change;
      |          if( b < a ) { let tmp = a; a = b; b = tmp; }
-     |          ids2seg[[a,b]].style.visibility = 'hidden';
+     |          const seg = ids2seg[[a,b]];
+     |          seg.toggles.add(state);
+     |          seg.setAttributeNS(null, 'opacity', 0);
      |        }
      |      };
+     |
      |      const ops_undo = {
      |        add_pt : ops_do.del_pt, add_tri: ops_do.del_tri,
      |        del_pt : ops_do.add_pt, del_tri: ops_do.add_tri,
@@ -408,8 +428,8 @@ object TriMeshTaped
      |      function goto_state( s ) {
      |        if( s < 0              ) throw new Error();
      |        if( s > changes.length ) throw new Error();
-     |        while( state < s ) { const change = changes[state++]; ops_do  [change.type](change); /* console.log( "  Do" + JSON.stringify(changes[state-1]) ); */ }
-     |        while( state > s ) { const change = changes[--state]; ops_undo[change.type](change); /* console.log( "UnDo" + JSON.stringify(changes[state  ]) ); */ }
+     |        while( state < s ) { const change = changes[  state]; ops_do  [change.type](change,state); /*console.log(change);*/ state++ }
+     |        while( state > s ) { const change = changes[--state]; ops_undo[change.type](change,state); /*console.log(change);*/         }
      |        document.location.hash = s
      |      }
      |
@@ -455,7 +475,69 @@ object TriMeshTaped
      |        document.body.appendChild(a);
      |        a.href = url;
      |        a.download = "mesh.svg";
+     |
+     |        document.body.appendChild(a);
      |        a.click();
+     |        document.body.removeChild(a);
+     |      }
+     |
+     |      anim_btn.onclick = () => {
+     |        const dat = svg.cloneNode(false);
+     |        dat.style = '';
+     |        dat.setAttribute('width', '1280px');
+     |        dat.setAttribute('height', '720px');
+     |
+     |        const dt = 32,
+     |               T = (changes.length+2)*dt + 8000;
+     |
+     |        for( const group of [tris,segs,pts] ) {
+     |          const clone = group.cloneNode(false);
+     |          for( const child of group.childNodes )
+     |          {
+     |            const dolly = child.cloneNode(false);
+     |            let vis = 0;
+     |            const times = [-1,...child.toggles].sort((x,y) => x-y)
+     |            for( const t of times )
+     |            {
+     |              let begin = '';
+     |              for( let i=0; i < 1; i++ ) // <- REPEAT N TIMES
+     |                begin += `$${i*T + (t+1)*dt}ms;`;
+     |
+     |              const set = document.createElementNS(SVG,'set');
+     |              set.setAttributeNS(null, 'attributeName', 'opacity');
+     |              set.setAttributeNS(null, 'to', vis);
+     |              set.setAttributeNS(null, 'begin', begin);
+     |
+     |              dolly.appendChild(set);
+     |
+     |              vis = 1-vis;
+     |            }
+     |            clone.appendChild(dolly);
+     |          }
+     |          dat.appendChild(clone);
+     |        }
+     |//        const trisClone = tris.cloneNode(false)
+     |//              segsClone = segs.cloneNode(false)
+     |//               ptsClone = pts .cloneNode(false)
+     |
+     |        let str = new XMLSerializer().serializeToString(dat);
+     |        str = '<?xml version="1.0" encoding="utf-8"?>\\n'
+     |            + '<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">\\n'
+     |            + str;
+     |
+     |        const blob = new Blob([str], {type: 'image/svg+xml'});
+     |        const url = URL.createObjectURL(blob);
+     |
+     |        window.open(url);
+     |
+     |//        const a = document.createElement('a');
+     |//        document.body.appendChild(a);
+     |//        a.href = url;
+     |//        a.download = "mesh.svg";
+     |//
+     |//        document.body.appendChild(a);
+     |//        a.click();
+     |//        document.body.removeChild(a);
      |      }
      |    }
      |    </script>

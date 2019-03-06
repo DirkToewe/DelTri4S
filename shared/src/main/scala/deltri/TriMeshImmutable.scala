@@ -106,7 +106,7 @@ class TriMeshImmutable private(
 
   def foreachSegment[U]( consumer: (IndexedNode,IndexedNode) => U ): Unit
     = _triSeg.foreachValue{
-        case (a,_,bs) => for( b <- bs ) consumer(a,b)
+        case (a,_,bs) => for( b <- bs ) if( a.index < b.index ) consumer(a,b)
       }
 
   def foreachSegmentAround[U]( node: Node )( consumer: IndexedNode => U ): Unit
@@ -152,17 +152,20 @@ class TriMeshImmutable private(
         case a @ IndexedNode(ai,_,_) =>
           val (`a`,tri,seg) = _triSeg(ai)
           var triSeg = _triSeg - ai
+          var numTris = nTris
           for( (bi,c) <- tri ) {
             val ci = c.index
+            numTris -= 1
             triSeg = triSeg
               .updateWith[V](bi, null, { case (( b ,tri,seg),_) => ( b, tri - ci, seg) } )
               .updateWith[V](ci, null, { case ((`c`,tri,seg),_) => ( c, tri - ai, seg) } )
           }
+          var numSegments = nSegments
           for( b @ IndexedNode(bi,_,_) <- seg )
             if( bi < ai ) {
               triSeg = triSeg.updateWith[V](bi, null, { case ((`b`,tri,seg),_) => ( b, tri, seg - a) } )
             }
-          new TriMeshImmutable( nTris, nSegments, triSeg )
+          new TriMeshImmutable( numTris, nSegments, triSeg )
       }
 
   def hasTri( a: Node, b: Node, c: Node ): Boolean
@@ -202,10 +205,9 @@ class TriMeshImmutable private(
       }}}
 
   def hasSegment( a: Node, b: Node ): Boolean
-    = a match { case a @ IndexedNode(ai,_,_) => val (an,_,segA) = _triSeg.getOrElse(ai,_emptyVal); an == a && (
-      b match { case b @ IndexedNode(bi,_,_) => val (bn,_,segB) = _triSeg.getOrElse(bi,_emptyVal); bn == b && (
-        if( ai < bi ) segA.contains(b)
-        else          segB.contains(a)
+    = a match { case a @ IndexedNode(ai,_,_) => val (an,_,segA) = _triSeg.getOrElse(ai,_emptyVal); (an eq a) && (
+      b match { case b @ IndexedNode(bi,_,_) => val (bn,_,segB) = _triSeg.getOrElse(bi,_emptyVal); (bn eq b) && (
+        segA contains b
       ) case _ => false }
       ) case _ => false }
 
@@ -214,8 +216,8 @@ class TriMeshImmutable private(
       b match { case b @ IndexedNode(bi,_,_) =>
         val (`a`,triA,segA) = _triSeg(ai)
         val (`b`,triB,segB) = _triSeg(bi)
-        val triSeg = if( ai < bi ) _triSeg updated ( ai, (a,triA,segA + b ensuring {_.size == segA.size+1} ) )
-                     else          _triSeg updated ( bi, (b,triB,segB + a ensuring {_.size == segB.size+1} ) )
+        val triSeg = _triSeg.updated( ai, (a,triA,segA + b ensuring {_.size == segA.size+1} ) )
+                            .updated( bi, (b,triB,segB + a ensuring {_.size == segB.size+1} ) )
         new TriMeshImmutable(nTris, nSegments + 1, triSeg )
       }}
 
@@ -224,8 +226,8 @@ class TriMeshImmutable private(
       b match { case b @ IndexedNode(bi,_,_) =>
         val (`a`,triA,segA) = _triSeg(ai)
         val (`b`,triB,segB) = _triSeg(bi)
-        val triSeg = if( ai < bi ) _triSeg.updated( ai, (a,triA,segA - b ensuring {_.size == segA.size-1} ) )
-                     else          _triSeg.updated( bi, (b,triB,segB - a ensuring {_.size == segB.size-1} ) )
+        val triSeg = _triSeg.updated( ai, (a,triA,segA - b ensuring {_.size == segA.size-1} ) )
+                            .updated( bi, (b,triB,segB - a ensuring {_.size == segB.size-1} ) )
         new TriMeshImmutable(nTris, nSegments-1, triSeg)
       }}
 

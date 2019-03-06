@@ -49,6 +49,7 @@ object CDT
     */
   def triangulate( mesh: TriMesh, plc: PLC ): Array[Node] = {
     val nodes = Delaunay.triangulate(mesh)(plc.nodes:_*)
+//    assert( mesh.boundaries.length == 1 )
 
     // This method closes the one side of the whole that
     // has been cut to insert a new segment into the CDT.
@@ -84,14 +85,16 @@ object CDT
             assert(  _orient2d(A,V,W) > 0 )
             val ov = _orient2d(A,B,V)
             val ow = _orient2d(A,B,W)
-            assert( 0 != ov*ow )
+            assert( 0 != ov*ow, "PLC has node on segment." )
             if( ov < 0 && ow > 0 ) { // V ist left and W right of (A,B)
               v = V
               w = W
+              assert( ! mesh.hasSegment(v,w), "PLC has crossing segments." )
               break() // <- TODO: test performance without break
             }
         }}
-
+        assert( null != v )
+        assert( null != w )
         // CUT OPEN
         V += v
         W += w
@@ -99,9 +102,10 @@ object CDT
         mesh.delTri(A,v,w)
         mesh.delTri(w,v,p)
         while( p != B ) {
-          val op = _orient2d(A,B,p) ensuring (_ != 0)
+          val op = _orient2d(A,B,p) ensuring (_ != 0, "PLC has node on segment.")
           if( op > 0 ) { w = p; W += w }
           else         { v = p; V += v }
+          assert( ! mesh.hasSegment(v,w), "PLC has crossing segments." )
           p = mesh.adjacent(w,v).nodeOrNull
           mesh.delTri(w,v,p)
         }
@@ -119,6 +123,8 @@ object CDT
       }
       mesh.addSegment(A,B)
     }
+
+//    assert( mesh.boundaries.length == 1 )
 
     if( plc.confinedBySegments ) {
       assert( mesh.nNodes == plc.nNodes, "plc.confinedBySegments=true only supported for initially empty meshes." )
