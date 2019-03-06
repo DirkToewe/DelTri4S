@@ -1,4 +1,4 @@
-![Animated DelTri4S Logo](./docs/logo.svg)
+![Animated DelTri4S Logo](https://dirktoewe.github.io/DelTri4S/logo.svg)
 
 DelTri4S is a 2D constrained Delaunay Triangulation library for Scala and ScalaJS.
 To that end it implements both mutable and immutable data structures
